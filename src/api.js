@@ -5,6 +5,8 @@
 //   GET  /v1/models
 //   POST /v1/chat/completions   (streaming and tool calls passed through as-is)
 
+import { identityPrompt, scrubText, scrubCompletion, newCompletionId } from './identity.js';
+
 const PUBLIC_MODEL_ID = 'default';
 
 function json(status, body) {
@@ -53,8 +55,10 @@ async function chatCompletions(request, env) {
   }
   if (!body || !Array.isArray(body.messages)) return apiError(400, '"messages" is required.');
 
-  // Whatever model name the client sends, use the one configured on the server.
+  // Whatever model name the client sends, use the one configured on the server,
+  // and put the identity instructions ahead of the tool's own system prompt.
   body.model = upstreamModel(env);
+  body.messages = [{ role: 'system', content: identityPrompt(env) }, ...body.messages];
 
   const baseUrl = (env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
   let upstream;
@@ -78,21 +82,63 @@ async function chatCompletions(request, env) {
     // Pass client errors (bad request, context too long) through so the tool can react;
     // hide everything else, especially upstream auth/billing problems.
     if (upstream.status === 400 || upstream.status === 413 || upstream.status === 422) {
-      return new Response(detail, {
-        status: upstream.status,
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      let error = {};
+      try {
+        error = JSON.parse(detail).error || {};
+      } catch {
+        // not JSON — fall back to a generic message
+      }
+      return json(upstream.status, {
+        error: {
+          message: scrubText(error.message || 'Invalid request.'),
+          type: 'invalid_request_error',
+          code: error.code || null,
+        },
       });
     }
     if (upstream.status === 429) return apiError(429, 'Rate limited. Try again shortly.', 'rate_limit_error');
     return apiError(502, 'Service temporarily unavailable.', 'server_error');
   }
 
-  return new Response(upstream.body, {
-    status: 200,
-    headers: {
-      'Content-Type': upstream.headers.get('Content-Type') || 'application/json',
-      'Cache-Control': 'no-cache',
+  const id = newCompletionId();
+  const contentType = upstream.headers.get('Content-Type') || '';
+
+  if (!contentType.includes('text/event-stream')) {
+    const data = await upstream.json().catch(() => null);
+    if (!data) return apiError(502, 'Service temporarily unavailable.', 'server_error');
+    return json(200, scrubCompletion(data, id));
+  }
+
+  // Rewrite each streamed chunk; content and tool calls are left untouched.
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = '';
+  const rewriteLine = (line) => {
+    if (!line.startsWith('data:')) return line;
+    const data = line.slice(5).trim();
+    if (!data || data === '[DONE]') return line;
+    try {
+      return 'data: ' + JSON.stringify(scrubCompletion(JSON.parse(data), id));
+    } catch {
+      return line;
+    }
+  };
+  const scrub = new TransformStream({
+    transform(chunk, controller) {
+      buffer += decoder.decode(chunk, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      if (lines.length) controller.enqueue(encoder.encode(lines.map(rewriteLine).join('\n') + '\n'));
     },
+    flush(controller) {
+      buffer += decoder.decode();
+      if (buffer) controller.enqueue(encoder.encode(rewriteLine(buffer)));
+    },
+  });
+
+  return new Response(upstream.body.pipeThrough(scrub), {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache' },
   });
 }
 

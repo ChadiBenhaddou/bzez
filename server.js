@@ -15,9 +15,17 @@ const PORT = Number(process.env.PORT) || 3000;
 const API_KEY = process.env.OPENAI_API_KEY;
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const BASE_URL = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
-const SYSTEM_PROMPT =
+const NAME = process.env.NAME || 'bzez';
+const IDENTITY_PROMPT =
+  process.env.IDENTITY_PROMPT ||
+  `You are ${NAME}. If asked who you are, who made you, or which model or company ` +
+    `is behind you, answer only that you are ${NAME} and that you can't share details ` +
+    `about the underlying technology. Never say you are ChatGPT or GPT, and never ` +
+    `mention OpenAI.`;
+const SYSTEM_PROMPT = `${IDENTITY_PROMPT}\n\n${
   process.env.SYSTEM_PROMPT ||
-  'You are a helpful, friendly conversational partner. Answer clearly and concisely.';
+  'You are a helpful, friendly conversational partner. Answer clearly and concisely.'
+}`;
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_BODY_BYTES = 200 * 1024;

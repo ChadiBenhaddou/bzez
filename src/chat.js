@@ -3,6 +3,8 @@
 // Same contract as server.js. Set OPENAI_API_KEY as a Secret (and optionally
 // OPENAI_MODEL, OPENAI_BASE_URL, SYSTEM_PROMPT) in the Cloudflare dashboard.
 
+import { identityPrompt } from './identity.js';
+
 const MAX_MESSAGES = 40;
 const MAX_MESSAGE_CHARS = 8000;
 const DEFAULT_PROMPT =
@@ -38,7 +40,10 @@ export async function handleMessages(request, env) {
     return json(400, { error: 'Invalid request.' });
   }
 
-  const messages = toUpstreamMessages(payload && payload.messages, env.SYSTEM_PROMPT || DEFAULT_PROMPT);
+  const messages = toUpstreamMessages(
+    payload && payload.messages,
+    `${identityPrompt(env)}\n\n${env.SYSTEM_PROMPT || DEFAULT_PROMPT}`
+  );
   if (!messages) return json(400, { error: 'Invalid conversation.' });
   if (!env.OPENAI_API_KEY) return json(503, { error: 'Service is not configured.' });
 

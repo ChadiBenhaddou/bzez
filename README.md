@@ -71,6 +71,8 @@ Then `export BZEZ_API_KEY=bz-...`, run `opencode`, and pick `bzez/default` with 
 | `OPENAI_MODEL`    | `gpt-4o-mini`               | Model to use.                              |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Any compatible endpoint.                   |
 | `SYSTEM_PROMPT`   | friendly helper prompt      | Instructions sent with every conversation. |
+| `NAME`            | `bzez`                      | Name the replies use for themselves.       |
+| `IDENTITY_PROMPT` | built in                    | Overrides the "who are you" instructions.  |
 | `PORT`            | `3000`                      | HTTP port.                                 |
 
 ## Structure
@@ -78,6 +80,7 @@ Then `export BZEZ_API_KEY=bz-...`, run `opencode`, and pick `bzez/default` with 
 - `server.js`: local Node server (static files + `/api/messages` streaming proxy)
 - `src/chat.js`: the same handler for Cloudflare, used by `src/worker.js`
   (Workers) and `functions/api/messages.js` (Pages)
+- `src/identity.js`: identity instructions and scrubbing of provider details
 - `src/api.js`: key-protected OpenAI-compatible `/v1` API (Worker and Pages)
 - `scripts/new-key.js`: generates an access key
 - `public/`: the chat interface (`index.html`, `style.css`, `app.js`)
