@@ -17,16 +17,19 @@ cp .env.example .env   # then put your key in OPENAI_API_KEY
 npm start              # http://localhost:3000
 ```
 
-## Deploy on Cloudflare Pages
+## Deploy on Cloudflare
 
-`functions/api/messages.js` is the Cloudflare version of the backend (Pages does not
-run `server.js`).
+Either product works; the chat handler lives in `src/chat.js`.
 
-1. Build settings: Framework preset **None**, build command **empty**, build output
-   directory **`public`**.
-2. Settings → Variables and Secrets → add `OPENAI_API_KEY` as type **Secret**
-   (optionally `OPENAI_MODEL`, `SYSTEM_PROMPT`) for Production (and Preview if used).
-3. Redeploy (Deployments → latest → Retry deployment) so the key is picked up.
+**Workers** (Workers & Pages → Create → import the repo): uses `wrangler.jsonc`
+(`src/worker.js` + static files from `public/`). The `name` in `wrangler.jsonc`
+must match the Worker's name in the dashboard.
+
+**Pages**: framework preset None, empty build command, output directory `public`.
+`functions/api/messages.js` provides the endpoint.
+
+For both: Settings → Variables and Secrets → add `OPENAI_API_KEY` as type
+**Secret** (never in a config file), then redeploy.
 
 ## Configuration (`.env`)
 
@@ -40,7 +43,9 @@ run `server.js`).
 
 ## Structure
 
-- `server.js`: static file server + `/api/messages` streaming proxy
+- `server.js`: local Node server (static files + `/api/messages` streaming proxy)
+- `src/chat.js`: the same handler for Cloudflare, used by `src/worker.js`
+  (Workers) and `functions/api/messages.js` (Pages)
 - `public/`: the chat interface (`index.html`, `style.css`, `app.js`)
 
 Conversations are kept in the browser's localStorage; "New chat" clears it.

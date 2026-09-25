@@ -1,0 +1,13 @@
+{
+  // Name must match the Worker name in the Cloudflare dashboard.
+  "name": "bzez",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  // Keep variables set in the dashboard. Put OPENAI_API_KEY there as a Secret,
+  // never in this file.
+  "keep_vars": true
+}

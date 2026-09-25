@@ -210,7 +210,10 @@
     } catch (err) {
       if (err.name !== 'AbortError' && !reply) {
         bubble.parentElement.classList.add('error');
-        bubble.textContent = err.message || 'Connection problem. Please try again.';
+        bubble.textContent =
+          err instanceof TypeError
+            ? 'Could not reach the server. Please try again.'
+            : err.message || 'Something went wrong. Please try again.';
       }
     } finally {
       if (reply) {
