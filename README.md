@@ -17,6 +17,17 @@ cp .env.example .env   # then put your key in OPENAI_API_KEY
 npm start              # http://localhost:3000
 ```
 
+## Deploy on Cloudflare Pages
+
+`functions/api/messages.js` is the Cloudflare version of the backend (Pages does not
+run `server.js`).
+
+1. Build settings: Framework preset **None**, build command **empty**, build output
+   directory **`public`**.
+2. Settings → Variables and Secrets → add `OPENAI_API_KEY` as type **Secret**
+   (optionally `OPENAI_MODEL`, `SYSTEM_PROMPT`) for Production (and Preview if used).
+3. Redeploy (Deployments → latest → Retry deployment) so the key is picked up.
+
 ## Configuration (`.env`)
 
 | Variable          | Default                     | Purpose                                    |
